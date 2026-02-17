@@ -13,7 +13,7 @@ const {
   provideFeedback,
   exportQuestionSetPDF
 } = require('../controllers/questionController');
-const { protect, requireVerification, authorize } = require('../middleware/authMiddleware');
+const { protect, authorize } = require('../middleware/authMiddleware');
 
 // Rate limiter for question generation (AI operations)
 const generateLimiter = rateLimit({

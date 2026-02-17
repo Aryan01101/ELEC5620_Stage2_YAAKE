@@ -12,7 +12,7 @@ const {
   exportPDF,
   exportText
 } = require('../controllers/outreachController');
-const { protect, requireVerification } = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/authMiddleware');
 
 // Rate limiters for different operations
 const generateLimiter = rateLimit({
