@@ -10,22 +10,40 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 70000, // 60 seconds timeout
+  timeout: 30000, // 30 seconds timeout (reduced from 70s for better UX)
 });
 
-// Request interceptor - add token to requests
+// Request interceptor - add token and CSRF token to requests
 api.interceptors.request.use(
   (config) => {
+    // Add JWT token
     const token = localStorage.getItem("yaake_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // Add CSRF token from cookie for state-changing requests
+    if (['post', 'put', 'patch', 'delete'].includes(config.method.toLowerCase())) {
+      const csrfToken = getCookie('XSRF-TOKEN');
+      if (csrfToken) {
+        config.headers['X-XSRF-TOKEN'] = csrfToken;
+      }
+    }
+
     return config;
   },
   (error) => {
     return Promise.reject(error);
   }
 );
+
+// Helper function to get cookie value
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+}
 
 // Response interceptor - handle errors globally
 api.interceptors.response.use(
@@ -90,6 +108,33 @@ export const authAPI = {
   // Logout
   logout: async () => {
     const response = await api.post("/auth/logout");
+    return response.data;
+  },
+
+  // Guest account registration
+  guestRegister: async (name, role) => {
+    const response = await api.post("/auth/guest-register", {
+      name,
+      role,
+    });
+    return response.data;
+  },
+
+  // Switch role (guest accounts only)
+  switchRole: async (newRole) => {
+    const response = await api.post("/auth/switch-role", {
+      newRole,
+    });
+    return response.data;
+  },
+
+  // Upgrade guest account to full account
+  upgradeGuest: async (email, password, confirmPassword) => {
+    const response = await api.post("/auth/upgrade-guest", {
+      email,
+      password,
+      confirmPassword,
+    });
     return response.data;
   },
 };

@@ -294,47 +294,50 @@ async function seedDatabase() {
     console.log('🔌 Connecting to MongoDB...');
     await db.connect();
 
-    console.log('🔍 Looking for a recruiter user...');
-    let recruiter = await User.findOne({ role: 'recruiter' });
+    console.log('🔍 Finding recruiters for each company...');
+    const recruiters = await User.find({ role: 'recruiter' });
 
-    if (!recruiter) {
-      console.log('⚠️  No recruiter found. Creating a default recruiter account...');
-      const bcrypt = require('bcryptjs');
-      const hashedPassword = await bcrypt.hash('Recruiter123!', 10);
-
-      recruiter = await User.create({
-        email: 'recruiter@yaake.com',
-        password: hashedPassword,
-        role: 'recruiter',
-        companyName: 'YAAKE Platform',
-        status: 'verified'
-      });
-
-      console.log('✅ Created recruiter account: recruiter@yaake.com / Recruiter123!');
-    } else {
-      console.log(`✅ Found recruiter: ${recruiter.email}`);
+    if (recruiters.length === 0) {
+      console.error('⚠️  No recruiters found! Please run seedRecruiters.js first.');
+      process.exit(1);
     }
+
+    console.log(`✅ Found ${recruiters.length} recruiter(s)`);
+
+    // Create a mapping of company names to recruiter IDs
+    const companyToRecruiter = {};
+    recruiters.forEach(recruiter => {
+      if (!companyToRecruiter[recruiter.companyName]) {
+        companyToRecruiter[recruiter.companyName] = recruiter._id;
+      }
+    });
 
     console.log('🗑️  Clearing existing job posts...');
     const deleteResult = await JobPost.deleteMany({});
     console.log(`   Deleted ${deleteResult.deletedCount} job post(s)`);
 
     console.log('📝 Inserting real job posts from actual companies...');
-    const jobsWithRecruiter = sampleJobPosts.map(job => ({
-      ...job,
-      recruiterId: recruiter._id
-    }));
+    const jobsWithRecruiter = sampleJobPosts.map(job => {
+      const recruiterId = companyToRecruiter[job.companyName];
+      if (!recruiterId) {
+        console.warn(`   ⚠️  No recruiter found for ${job.companyName}, using first recruiter`);
+        return { ...job, recruiterId: recruiters[0]._id };
+      }
+      return { ...job, recruiterId };
+    });
 
     const insertedJobs = await JobPost.insertMany(jobsWithRecruiter);
     console.log(`✅ Successfully inserted ${insertedJobs.length} job posts`);
 
     console.log('\n📊 Summary:');
     console.log(`   Total jobs created: ${insertedJobs.length}`);
-    console.log(`   Recruiter: ${recruiter.email}`);
+    console.log(`   Recruiters used: ${recruiters.length}`);
     console.log(`   Companies: Atlassian, Canva, Google, Accenture, Commonwealth Bank, Bankwest, Capgemini`);
     console.log(`   All jobs have working application links to real career pages`);
 
     console.log('\n✨ Database seeding complete with real job postings!');
+
+    return insertedJobs;
   } catch (error) {
     console.error('❌ Error seeding database:', error);
     process.exit(1);
@@ -344,5 +347,9 @@ async function seedDatabase() {
   }
 }
 
-// Run the seed function
-seedDatabase();
+// Run if executed directly
+if (require.main === module) {
+  seedDatabase();
+}
+
+module.exports = seedDatabase;

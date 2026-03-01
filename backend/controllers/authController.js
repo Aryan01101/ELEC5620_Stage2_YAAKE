@@ -38,7 +38,7 @@ const register = async (req, res) => {
     }
 
     // Create new user (FR3: pending verification status)
-  const userRole = role || 'candidate';
+  const userRole = role || 'applicant'; // Fixed: changed from 'candidate' to match schema
   const user = await UserController.create(email, password, false, userRole, companyName);
     // FR3: Generate verification token
 
@@ -316,6 +316,272 @@ const githubOAuthCallback = async (req, res) => {
   });
 };
 
+// ============================================
+// GUEST/DEMO ACCOUNT FEATURES
+// ============================================
+
+const logger = require('../config/logger');
+
+// @desc    Quick guest registration for networking events/demos
+// @route   POST /api/auth/guest-register
+// @access  Public
+const guestRegister = async (req, res) => {
+  try {
+    const { name, role } = req.body;
+
+    // Validate role (applicant, recruiter, career_trainer)
+    const validRoles = ['applicant', 'recruiter', 'career_trainer'];
+    const guestRole = role && validRoles.includes(role) ? role : 'applicant';
+
+    // Generate unique guest email based on timestamp and random string
+    const timestamp = Date.now();
+    const randomStr = crypto.randomBytes(4).toString('hex');
+    const guestEmail = `guest-${timestamp}-${randomStr}@demo.yaake.com`;
+
+    // Use simple password for guests
+    const guestPassword = 'Guest2024!';
+
+    // Create guest user with special settings
+    const guestName = name || `Demo ${guestRole.charAt(0).toUpperCase() + guestRole.slice(1)}`;
+    const companyName = guestRole === 'recruiter' ? 'Demo Company' : undefined;
+
+    // Create user
+    const user = await UserController.create(
+      guestEmail,
+      guestPassword,
+      true, // isVerified = true (skip email verification)
+      guestRole,
+      companyName
+    );
+
+    // Update user to mark as guest
+    await UserController.update(user._id || user.id, {
+      isGuest: true,
+      name: guestName,
+      guestMetadata: {
+        createdAt: new Date(),
+        originalRole: guestRole,
+        roleSwitchCount: 0,
+        upgradedAt: null,
+      },
+    });
+
+    // Generate JWT token
+    const token = generateToken(user._id || user.id);
+
+    // Get updated user
+    const updatedUser = await UserController.findById(user._id || user.id);
+    const userObj = updatedUser.toObject ? updatedUser.toObject() : updatedUser;
+    delete userObj.password;
+
+    // Log guest creation for analytics
+    logger.info('Guest account created', {
+      guestId: user._id || user.id,
+      role: guestRole,
+      name: guestName,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Guest account created successfully! You're now in demo mode.",
+      data: {
+        user: userObj,
+        token,
+        credentials: {
+          email: guestEmail,
+          password: guestPassword,
+        },
+        isGuest: true,
+      },
+    });
+  } catch (error) {
+    logger.error('Guest registration error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during guest registration",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Switch role (guest accounts only)
+// @route   POST /api/auth/switch-role
+// @access  Private (Guest only)
+const switchRole = async (req, res) => {
+  try {
+    const { newRole } = req.body;
+
+    // Check if user is a guest
+    if (!req.user.isGuest) {
+      return res.status(403).json({
+        success: false,
+        message: "Role switching is only available for guest accounts",
+      });
+    }
+
+    // Validate new role
+    const validRoles = ['applicant', 'recruiter', 'career_trainer'];
+    if (!newRole || !validRoles.includes(newRole)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid role. Must be one of: applicant, recruiter, career_trainer",
+      });
+    }
+
+    // Update role and increment switch count
+    const currentSwitchCount = req.user.guestMetadata?.roleSwitchCount || 0;
+    const updates = {
+      role: newRole,
+      'guestMetadata.roleSwitchCount': currentSwitchCount + 1,
+    };
+
+    // Add company name for recruiters
+    if (newRole === 'recruiter' && !req.user.companyName) {
+      updates.companyName = 'Demo Company';
+    }
+
+    await UserController.update(req.user.id, updates);
+
+    // Generate new token with updated role
+    const newToken = generateToken(req.user.id);
+
+    // Get updated user
+    const updatedUser = await UserController.findById(req.user.id);
+    const userObj = updatedUser.toObject ? updatedUser.toObject() : updatedUser;
+    delete userObj.password;
+
+    // Log role switch for analytics
+    logger.info('Guest role switched', {
+      guestId: req.user.id,
+      oldRole: req.user.role,
+      newRole: newRole,
+      switchCount: currentSwitchCount + 1,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Role switched to ${newRole} successfully`,
+      data: {
+        user: userObj,
+        token: newToken,
+      },
+    });
+  } catch (error) {
+    logger.error('Role switch error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during role switch",
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Upgrade guest account to full account
+// @route   POST /api/auth/upgrade-guest
+// @access  Private (Guest only)
+const upgradeGuest = async (req, res) => {
+  try {
+    const { email, password, confirmPassword } = req.body;
+
+    // Check if user is a guest
+    if (!req.user.isGuest) {
+      return res.status(403).json({
+        success: false,
+        message: "This endpoint is only for guest accounts",
+      });
+    }
+
+    // Validate input
+    if (!email || !password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Email, password, and confirmPassword are required",
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Passwords do not match",
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email format",
+      });
+    }
+
+    // Check if email already exists (different from current guest email)
+    if (email.toLowerCase() !== req.user.email.toLowerCase()) {
+      const existingUser = await UserController.findByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: "Email already registered",
+        });
+      }
+    }
+
+    // Hash new password
+    const bcrypt = require('bcrypt');
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+
+    // Update user to full account
+    const updates = {
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      isGuest: false,
+      isVerified: false,
+      verificationToken: verificationToken,
+      'guestMetadata.upgradedAt': new Date(),
+    };
+
+    await UserController.update(req.user.id, updates);
+
+    // Send verification email
+    const emailResult = await sendVerificationEmail(email, verificationToken);
+
+    // Get updated user
+    const updatedUser = await UserController.findById(req.user.id);
+    const userObj = updatedUser.toObject ? updatedUser.toObject() : updatedUser;
+    delete userObj.password;
+
+    // Generate new token
+    const newToken = generateToken(req.user.id);
+
+    // Log upgrade for analytics
+    logger.info('Guest account upgraded', {
+      userId: req.user.id,
+      newEmail: email,
+      originalRole: req.user.guestMetadata?.originalRole,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Account upgraded successfully! Please check your email to verify your account.",
+      data: {
+        user: userObj,
+        token: newToken,
+        emailSent: emailResult.success,
+      },
+    });
+  } catch (error) {
+    logger.error('Guest upgrade error:', error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during account upgrade",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -327,4 +593,8 @@ module.exports = {
   googleOAuthCallback,
   githubOAuth,
   githubOAuthCallback,
+  // Guest features
+  guestRegister,
+  switchRole,
+  upgradeGuest,
 };

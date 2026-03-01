@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Routes, Route, Link, useLocation } from "react-router-dom";
 import { authAPI } from "../services/api";
+import GuestModeBanner from "../components/GuestModeBanner";
+import RoleSwitcher from "../components/RoleSwitcher";
+import UpgradeModal from "../components/UpgradeModal";
 
 // Import all feature pages
 import ResumeATS from "./Features/ResumeATS";
@@ -25,6 +28,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [showRoleSwitcher, setShowRoleSwitcher] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const menuItems = [
     { path: "/dashboard/resume-ats", iconType: "document", label: "Resume ATS Checker", useCase: "UC2", roles: ["applicant", "recruiter"] },
@@ -168,6 +173,16 @@ const Dashboard = () => {
     }
   };
 
+  const handleRoleSwitchSuccess = (updatedUser) => {
+    setUser(updatedUser);
+    setShowRoleSwitcher(false);
+  };
+
+  const handleUpgradeSuccess = (updatedUser) => {
+    setUser(updatedUser);
+    setShowUpgradeModal(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
@@ -305,6 +320,15 @@ const Dashboard = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-y-auto">
+        {/* Guest Mode Banner */}
+        {user && user.isGuest && (
+          <GuestModeBanner
+            user={user}
+            onRoleSwitch={() => setShowRoleSwitcher(true)}
+            onUpgrade={() => setShowUpgradeModal(true)}
+          />
+        )}
+
         {/* Top Header */}
         <header className="bg-white shadow-sm border-b border-gray-200 px-8 py-4">
           <div className="flex items-center justify-between">
@@ -342,6 +366,22 @@ const Dashboard = () => {
           </Routes>
         </div>
       </main>
+
+      {/* Guest Mode Modals */}
+      {showRoleSwitcher && (
+        <RoleSwitcher
+          currentRole={user?.role}
+          onClose={() => setShowRoleSwitcher(false)}
+          onSuccess={handleRoleSwitchSuccess}
+        />
+      )}
+
+      {showUpgradeModal && (
+        <UpgradeModal
+          onClose={() => setShowUpgradeModal(false)}
+          onSuccess={handleUpgradeSuccess}
+        />
+      )}
     </div>
   );
 };

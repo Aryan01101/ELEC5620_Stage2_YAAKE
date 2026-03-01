@@ -13,6 +13,15 @@ const userSchema = new mongoose.Schema(
     companyId: { type: String }, // For future company grouping
     isVerified: { type: Boolean, default: false },
     verificationToken: { type: String, default: null },
+
+    // Guest/Demo account fields
+    isGuest: { type: Boolean, default: false, index: true },
+    guestMetadata: {
+      createdAt: { type: Date, default: null },
+      originalRole: { type: String, default: null }, // Track original role for analytics
+      roleSwitchCount: { type: Number, default: 0 }, // Track how many times role was switched
+      upgradedAt: { type: Date, default: null }, // Track if/when upgraded to full account
+    },
   },
   { timestamps: true }
 );

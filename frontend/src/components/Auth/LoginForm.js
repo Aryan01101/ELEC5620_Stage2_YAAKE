@@ -153,6 +153,17 @@ const LoginForm = () => {
           {loading ? 'Signing in...' : 'Sign In'}
         </button>
 
+        <div className="guest-divider">
+          <span>or</span>
+        </div>
+
+        <Link to="/guest-signup" className="guest-link">
+          <button type="button" className="guest-button">
+            <span className="guest-icon">👤</span>
+            Try as Guest
+          </button>
+        </Link>
+
         <div className="form-footer">
           <p>
             Don't have an account?{' '}
@@ -311,6 +322,79 @@ const LoginForm = () => {
           opacity: 0.6;
           cursor: not-allowed;
           transform: none;
+        }
+
+        .guest-divider {
+          text-align: center;
+          margin: 24px 0 16px 0;
+          position: relative;
+        }
+
+        .guest-divider::before,
+        .guest-divider::after {
+          content: '';
+          position: absolute;
+          top: 50%;
+          width: 40%;
+          height: 1px;
+          background: #E5DDD1;
+        }
+
+        .guest-divider::before {
+          left: 0;
+        }
+
+        .guest-divider::after {
+          right: 0;
+        }
+
+        .guest-divider span {
+          background: #FFFFFF;
+          padding: 0 12px;
+          font-size: 13px;
+          color: #6B6358;
+          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 1px;
+        }
+
+        .guest-link {
+          display: block;
+          text-decoration: none;
+        }
+
+        .guest-button {
+          width: 100%;
+          padding: 14px 20px;
+          background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+          color: #FFFFFF;
+          border: none;
+          border-radius: 12px;
+          font-size: 16px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
+          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+        }
+
+        .guest-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+          background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%);
+        }
+
+        .guest-button:active {
+          transform: translateY(0);
+        }
+
+        .guest-icon {
+          font-size: 18px;
         }
 
         .form-footer {

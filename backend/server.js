@@ -2,12 +2,24 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
+const compression = require('compression');
+const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
+// Initialize logger (must be early for console override)
+const logger = require('./config/logger');
+
+// Validate environment variables before starting
+const { validateOrExit } = require('./config/env.validation');
+validateOrExit();
+
+const sentry = require('./config/sentry');
 const authRoutes = require('./routes/authRoutes');
 const coverLetterRoutes = require('./routes/coverLetterRoutes');
 const exportRoutes = require('./routes/exportRoutes');
@@ -29,6 +41,13 @@ const dbService = require('./services/db.service');
 // Initialize Express app
 const app = express();
 
+// Initialize Sentry (must be before other middleware)
+sentry.initSentry(app);
+
+// Sentry request tracking (must be first middleware)
+app.use(sentry.getRequestHandler());
+app.use(sentry.getTracingHandler());
+
 // Security middleware
 app.use(helmet());
 
@@ -38,9 +57,32 @@ app.use(cors({
   credentials: true
 }));
 
+// Cookie parser middleware (required for CSRF protection)
+app.use(cookieParser());
+
 // Body parser middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Data sanitization against NoSQL query injection
+app.use(mongoSanitize());
+
+// Compression middleware for response compression
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  },
+  level: 6 // Compression level (0-9, 6 is default)
+}));
+
+// HTTP request logging with Morgan
+const morganFormat = process.env.NODE_ENV === 'production'
+  ? 'combined' // Apache combined format for production
+  : 'dev';     // Colored dev format for development
+app.use(morgan(morganFormat, { stream: logger.stream }));
 
 // Rate limiting (NFR: Performance optimization)
 const limiter = rateLimit({
@@ -50,6 +92,11 @@ const limiter = rateLimit({
 });
 
 app.use('/api/', limiter);
+
+// CSRF Protection (set token on all responses, validate on state-changing requests)
+const { setCsrfToken, validateCsrfToken } = require('./middleware/csrfMiddleware');
+app.use(setCsrfToken);      // Set CSRF token cookie on all requests
+app.use(validateCsrfToken); // Validate CSRF token on POST/PUT/PATCH/DELETE
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -67,12 +114,39 @@ app.use('/api/schedule', scheduleRoutes);
 app.use('/api/recommender', recommenderRoutes);
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
+app.get('/api/health', async (req, res) => {
+  const healthCheck = {
     success: true,
     message: 'YAAKE Backend is running',
-    timestamp: new Date().toISOString()
-  });
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
+    services: {
+      api: 'healthy',
+      database: 'unknown',
+    },
+  };
+
+  // Check database connection
+  try {
+    if (mongoose.connection.readyState === 1) {
+      // Connected
+      await mongoose.connection.db.admin().ping();
+      healthCheck.services.database = 'healthy';
+    } else {
+      healthCheck.services.database = 'disconnected';
+      healthCheck.success = false;
+      healthCheck.message = 'Database is not connected';
+    }
+  } catch (error) {
+    healthCheck.services.database = 'unhealthy';
+    healthCheck.success = false;
+    healthCheck.message = 'Database health check failed';
+    healthCheck.error = error.message;
+  }
+
+  const statusCode = healthCheck.success ? 200 : 503;
+  res.status(statusCode).json(healthCheck);
 });
 
 // 404 handler
@@ -83,13 +157,24 @@ app.use((req, res) => {
   });
 });
 
+// Sentry error handler (must be before other error handlers)
+app.use(sentry.getErrorHandler());
+
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  // Log error with context
+  logger.logError(err, {
+    method: req.method,
+    url: req.originalUrl,
+    ip: req.ip,
+    userId: req.user?.id,
+    body: req.body,
+  });
+
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Internal server error',
-    error: process.env.NODE_ENV === 'development' ? err : {}
+    error: process.env.NODE_ENV === 'development' ? err.stack : {}
   });
 });
 
@@ -114,39 +199,39 @@ const startServer = () => {
       };
 
       https.createServer(httpsOptions, app).listen(PORT, () => {
-        console.log('===========================================');
-        console.log(`YAAKE Backend Server (HTTPS)`);
-        console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-        console.log(`Server running on https://localhost:${PORT}`);
-        console.log(`Health check: https://localhost:${PORT}/api/health`);
-        console.log('===========================================');
+        logger.info('===========================================');
+        logger.info(`YAAKE Backend Server (HTTPS)`);
+        logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+        logger.info(`Server running on https://localhost:${PORT}`);
+        logger.info(`Health check: https://localhost:${PORT}/api/health`);
+        logger.info('===========================================');
       });
     } else {
-      console.warn('⚠️  SSL certificates not found. Falling back to HTTP.');
-      console.warn(`Expected SSL key at: ${sslKeyPath}`);
-      console.warn(`Expected SSL cert at: ${sslCertPath}`);
-      console.warn('To generate self-signed certificates, run:');
-      console.warn('mkdir -p backend/config/ssl && openssl req -x509 -newkey rsa:4096 -keyout backend/config/ssl/key.pem -out backend/config/ssl/cert.pem -days 365 -nodes');
+      logger.warn('⚠️  SSL certificates not found. Falling back to HTTP.');
+      logger.warn(`Expected SSL key at: ${sslKeyPath}`);
+      logger.warn(`Expected SSL cert at: ${sslCertPath}`);
+      logger.warn('To generate self-signed certificates, run:');
+      logger.warn('mkdir -p backend/config/ssl && openssl req -x509 -newkey rsa:4096 -keyout backend/config/ssl/key.pem -out backend/config/ssl/cert.pem -days 365 -nodes');
 
       // Start HTTP server as fallback
       http.createServer(app).listen(PORT, () => {
-        console.log('===========================================');
-        console.log(`YAAKE Backend Server (HTTP - Fallback)`);
-        console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-        console.log(`Server running on http://localhost:${PORT}`);
-        console.log(`Health check: http://localhost:${PORT}/api/health`);
-        console.log('===========================================');
+        logger.info('===========================================');
+        logger.info(`YAAKE Backend Server (HTTP - Fallback)`);
+        logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+        logger.info(`Server running on http://localhost:${PORT}`);
+        logger.info(`Health check: http://localhost:${PORT}/api/health`);
+        logger.info('===========================================');
       });
     }
   } else {
     // HTTP server
     http.createServer(app).listen(PORT, () => {
-      console.log('===========================================');
-      console.log(`YAAKE Backend Server (HTTP)`);
-      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`Server running on http://localhost:${PORT}`);
-      console.log(`Health check: http://localhost:${PORT}/api/health`);
-      console.log('===========================================');
+      logger.info('===========================================');
+      logger.info(`YAAKE Backend Server (HTTP)`);
+      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`Server running on http://localhost:${PORT}`);
+      logger.info(`Health check: http://localhost:${PORT}/api/health`);
+      logger.info('===========================================');
     });
   }
 };
@@ -158,18 +243,18 @@ dbService.connect()
     UserController.initializeSuperUser()
       .then(() => startServer())
       .catch((err) => {
-        console.error('Failed to initialize super user:', err);
+        logger.error('Failed to initialize super user:', err);
         process.exit(1);
       });
   })
   .catch((err) => {
-    console.error('Failed to connect to MongoDB. Server not started.');
-    console.error(err);
+    logger.error('Failed to connect to MongoDB. Server not started.');
+    logger.error(err);
     process.exit(1);
   });
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
-  console.error('Unhandled Promise Rejection:', err);
+  logger.error('Unhandled Promise Rejection:', err);
   process.exit(1);
 });
 
