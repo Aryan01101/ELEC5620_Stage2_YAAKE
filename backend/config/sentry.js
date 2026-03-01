@@ -39,8 +39,13 @@ function initSentry(app) {
       nodeProfilingIntegration(),
     ],
 
-    // Before sending to Sentry, remove sensitive data
+    // Before sending to Sentry, remove sensitive data and filter errors
     beforeSend(event, hint) {
+      // Filter out 404 errors (not actionable)
+      if (hint?.originalException?.status === 404 || event.exception?.values?.[0]?.value?.includes('404')) {
+        return null; // Don't send 404s to Sentry
+      }
+
       // Remove sensitive headers
       if (event.request?.headers) {
         delete event.request.headers.authorization;
@@ -64,24 +69,22 @@ function initSentry(app) {
 
 /**
  * Get Sentry request handler middleware
- * Add this BEFORE your routes
+ * Note: In Sentry v10+, request handling is automatic via httpIntegration()
+ * This function is kept for backward compatibility but returns a no-op middleware
  */
 function getRequestHandler() {
-  if (!process.env.SENTRY_DSN) {
-    return (req, res, next) => next();
-  }
-  return Sentry.Handlers.requestHandler();
+  // No longer needed in v10 - handled automatically by httpIntegration
+  return (req, res, next) => next();
 }
 
 /**
  * Get Sentry tracing middleware
- * Add this BEFORE your routes
+ * Note: In Sentry v10+, tracing is automatic via httpIntegration()
+ * This function is kept for backward compatibility but returns a no-op middleware
  */
 function getTracingHandler() {
-  if (!process.env.SENTRY_DSN) {
-    return (req, res, next) => next();
-  }
-  return Sentry.Handlers.tracingHandler();
+  // No longer needed in v10 - handled automatically by httpIntegration
+  return (req, res, next) => next();
 }
 
 /**
@@ -92,12 +95,11 @@ function getErrorHandler() {
   if (!process.env.SENTRY_DSN) {
     return (err, req, res, next) => next(err);
   }
-  return Sentry.Handlers.errorHandler({
-    shouldHandleError(error) {
-      // Send all errors to Sentry except 404s
-      return error.status !== 404;
-    },
-  });
+
+  // v10+ API - setupExpressErrorHandler returns the middleware
+  // Note: shouldHandleError filter is not supported in v10 setupExpressErrorHandler
+  // Errors are filtered in beforeSend hook instead
+  return Sentry.setupExpressErrorHandler();
 }
 
 /**
