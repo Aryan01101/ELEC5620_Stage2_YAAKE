@@ -7,7 +7,6 @@ const InterviewScheduler = () => {
   const [applicants, setApplicants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedInterview, setSelectedInterview] = useState(null);
 
   // Form state for creating interviews
   const [formData, setFormData] = useState({

@@ -16,7 +16,7 @@ const {
   switchRole,
   upgradeGuest
 } = require('../controllers/authController');
-const { protect, requireVerification } = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/authMiddleware');
 const { guestRegisterLimiter, requireGuest } = require('../middleware/guestMiddleware');
 
 const router = express.Router();

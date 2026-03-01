@@ -240,7 +240,6 @@ const Dashboard = () => {
                   </svg>
                 </div>
                 <h4 className="font-semibold text-gray-800 mb-2">{item.label}</h4>
-                <p className="text-sm text-gray-600">{item.useCase}</p>
               </Link>
             ))}
           </div>
@@ -275,7 +274,6 @@ const Dashboard = () => {
                 {!isSidebarCollapsed && (
                   <div className="flex-1">
                     <div className="font-medium text-sm">{item.label}</div>
-                    <div className="text-xs text-indigo-200">{item.useCase}</div>
                   </div>
                 )}
               </Link>

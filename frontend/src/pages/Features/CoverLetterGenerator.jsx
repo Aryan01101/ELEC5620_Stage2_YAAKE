@@ -5,11 +5,8 @@ import { filesAPI, coverLettersAPI, exportAPI } from '../../services/api';
 const CoverLetterGenerator = () => {
   const [step, setStep] = useState(1);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [refining, setRefining] = useState(false);
-
-  const [resumeFile, setResumeFile] = useState(null);
   const [resumeMeta, setResumeMeta] = useState(null);
   const [resumeText, setResumeText] = useState('');
   const [jobDescriptionText, setJobDescriptionText] = useState('');
@@ -45,7 +42,6 @@ const CoverLetterGenerator = () => {
   }, [length, customMaxWords]);
   const currentDraft = drafts[selectedDraftIdx] || null;
   const currentWordCount = useMemo(() => (currentDraft?.wordCount ?? editorText.split(/\s+/).filter(Boolean).length), [currentDraft, editorText]);
-  const alignmentScore = currentDraft?.alignmentScore ?? null;
   const matchedKeywords = currentDraft?.keywordCoverage || [];
   const totalKeywords = (extractedKeywords || []).length;
   const keywordCoveragePct = totalKeywords ? Math.round((matchedKeywords.length / totalKeywords) * 100) : null;
@@ -62,15 +58,6 @@ const CoverLetterGenerator = () => {
     const v = parseInt(customMaxWords, 10);
     return !isNaN(v) && v >= 120 && v <= 800;
   }, [customMaxWords]);
-
-  function scoreGradient(score) {
-    if (score == null) return 'from-gray-300 to-gray-400';
-    if (score >= 85) return 'from-green-500 to-emerald-600';
-    if (score >= 75) return 'from-blue-500 to-cyan-600';
-    if (score >= 65) return 'from-yellow-500 to-amber-600';
-    if (score >= 50) return 'from-orange-500 to-rose-500';
-    return 'from-rose-600 to-red-700';
-  }
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -109,8 +96,6 @@ const CoverLetterGenerator = () => {
 
   async function handleUploadFile(file) {
     setUploading(true);
-    setUploadProgress(0);
-    setResumeFile(file);
     try {
       const resp = await filesAPI.uploadResume(file);
       if (resp?.success) {
@@ -225,9 +210,6 @@ const CoverLetterGenerator = () => {
       <div className="max-w-6xl mx-auto">
         <Toaster position="top-right" />
         <div className="mb-8">
-          <div className="inline-block px-4 py-1 bg-purple-100 text-purple-700 text-sm font-semibold rounded-full mb-4">
-            Use Case 2 (UC3)
-          </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Cover Letter Generator</h1>
           <p className="text-lg text-gray-600 max-w-3xl">Upload your resume, optionally paste the job description, choose a style, and generate/refine an ATS-friendly cover letter.</p>
         </div>

@@ -155,9 +155,6 @@ const InterviewQuestionsBank = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
         <div className="mb-8">
-          <div className="inline-block px-4 py-1 bg-amber-100 text-amber-700 text-sm font-semibold rounded-full mb-4">
-            Use Case 11 (UC11)
-          </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             Interview Questions Bank
           </h1>

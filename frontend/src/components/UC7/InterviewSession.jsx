@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { mockInterviewAPI } from '../../services/api';
 
 /**
  * InterviewSession Component
@@ -10,7 +11,6 @@ const InterviewSession = ({ interviewData, onFinishInterview }) => {
   const [error, setError] = useState('');
   const [conversationHistory, setConversationHistory] = useState([]);
   const [isComplete, setIsComplete] = useState(false);
-  const [completionMessage, setCompletionMessage] = useState('');
 
   const conversationEndRef = useRef(null);
   const answerInputRef = useRef(null);
@@ -61,35 +61,26 @@ const InterviewSession = ({ interviewData, onFinishInterview }) => {
     setConversationHistory(newConversation);
 
     try {
-      const response = await fetch('http://localhost:5001/api/uc7/answer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('yaake_token')}`
-        },
-        body: JSON.stringify({
-          interviewId: interviewData.interviewId,
-          answer: answer.trim()
-        })
-      });
+      // Use API service instead of direct fetch
+      const data = await mockInterviewAPI.submitAnswer(
+        interviewData.interviewId,
+        answer.trim()
+      );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to submit answer');
+      if (!data) {
+        throw new Error('Failed to submit answer');
       }
 
       setAnswer(''); // Clear input
 
-      if (data.data.isComplete) {
+      if (data.isComplete) {
         // Interview is complete
         setIsComplete(true);
-        setCompletionMessage(data.data.acknowledgment || data.data.message);
         setConversationHistory([
           ...newConversation,
           {
             type: 'completion',
-            content: data.data.acknowledgment || data.data.message
+            content: data.acknowledgment || data.message
           }
         ]);
       } else {
@@ -98,9 +89,9 @@ const InterviewSession = ({ interviewData, onFinishInterview }) => {
           ...newConversation,
           {
             type: 'question',
-            content: data.data.question,
-            questionNumber: data.data.questionNumber,
-            totalQuestions: data.data.totalQuestions
+            content: data.question,
+            questionNumber: data.questionNumber,
+            totalQuestions: data.totalQuestions
           }
         ]);
       }

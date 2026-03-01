@@ -6,9 +6,6 @@ const DraftEditor = () => {
       <div className="max-w-6xl mx-auto">
         {/* Header Section */}
         <div className="mb-8">
-          <div className="inline-block px-4 py-1 bg-blue-100 text-blue-700 text-sm font-semibold rounded-full mb-4">
-            Use Case 4 (UC4)
-          </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             Draft Editor
           </h1>

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { outreachAPI } from '../../services/api';
-import { notifySuccess, notifyError, notifyInfo } from '../../services/notification.service';
+import { notifySuccess, notifyError } from '../../services/notification.service';
 
 const ColdOutreach = () => {
   const [outreachEmails, setOutreachEmails] = useState([]);
@@ -23,22 +23,27 @@ const ColdOutreach = () => {
   const [generating, setGenerating] = useState(false);
   const [sending, setSending] = useState(false);
 
-  useEffect(() => {
-    fetchOutreachEmails();
-  }, [filterStatus]);
-
-  const fetchOutreachEmails = async () => {
+  const fetchOutreachEmails = useCallback(async () => {
     setLoading(true);
     try {
       const status = filterStatus === 'all' ? null : filterStatus;
       const emails = await outreachAPI.getOutreachEmails(status);
-      setOutreachEmails(emails);
+      setOutreachEmails(emails || []);
     } catch (error) {
-      notifyError('Failed to fetch outreach emails');
+      // Don't show error for empty results - just set empty array
+      setOutreachEmails([]);
+      // Only show error if it's a real server error (not 404 or empty)
+      if (error.response && error.response.status !== 404) {
+        notifyError('Failed to fetch outreach emails');
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterStatus]);
+
+  useEffect(() => {
+    fetchOutreachEmails();
+  }, [fetchOutreachEmails]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

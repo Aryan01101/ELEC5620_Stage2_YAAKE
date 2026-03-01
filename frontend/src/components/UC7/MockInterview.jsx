@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import InterviewSetup from './InterviewSetup';
 import InterviewSession from './InterviewSession';
 import InterviewResults from './InterviewResults';
+import { mockInterviewAPI } from '../../services/api';
 
 /**
  * MockInterview - Main Controller Component
@@ -24,23 +25,15 @@ const MockInterview = () => {
         throw new Error('Please login to start the interview');
       }
 
-      const response = await fetch('http://localhost:5001/api/uc7/start', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
+      // Use API service instead of direct fetch
+      const data = await mockInterviewAPI.startInterview(formData);
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to start interview');
+      if (!data) {
+        throw new Error('Failed to start interview');
       }
 
       // Save interview data and move to session
-      setInterviewData(data.data);
+      setInterviewData(data);
       setCurrentStep('session');
     } catch (error) {
       console.error('Error starting interview:', error);
@@ -54,27 +47,15 @@ const MockInterview = () => {
    */
   const handleFinishInterview = async () => {
     try {
-      const token = localStorage.getItem('yaake_token');
+      // Use API service instead of direct fetch
+      const data = await mockInterviewAPI.finishInterview(interviewData.interviewId);
 
-      const response = await fetch('http://localhost:5001/api/uc7/finish', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          interviewId: interviewData.interviewId
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to finish interview');
+      if (!data) {
+        throw new Error('Failed to finish interview');
       }
 
       // Save results and move to results page
-      setResults(data.data);
+      setResults(data);
       setCurrentStep('results');
     } catch (error) {
       console.error('Error finishing interview:', error);

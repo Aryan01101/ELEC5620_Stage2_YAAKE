@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { questionAPI } from '../../services/api';
-import { notifySuccess, notifyError, notifyInfo } from '../../services/notification.service';
+import { notifySuccess, notifyError } from '../../services/notification.service';
 
 const InterviewQuestionGenerator = () => {
   const [questionSets, setQuestionSets] = useState([]);
@@ -24,11 +24,7 @@ const InterviewQuestionGenerator = () => {
   const [generating, setGenerating] = useState(false);
   const [editingQuestionIndex, setEditingQuestionIndex] = useState(null);
 
-  useEffect(() => {
-    fetchQuestionSets();
-  }, [filterVisibility]);
-
-  const fetchQuestionSets = async () => {
+  const fetchQuestionSets = useCallback(async () => {
     setLoading(true);
     try {
       const visibility = filterVisibility === 'all' ? null : filterVisibility;
@@ -39,7 +35,11 @@ const InterviewQuestionGenerator = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterVisibility]);
+
+  useEffect(() => {
+    fetchQuestionSets();
+  }, [fetchQuestionSets]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

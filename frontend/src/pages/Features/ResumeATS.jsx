@@ -111,9 +111,6 @@ const ResumeATS = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
         <div className="mb-8">
-          <div className="inline-block px-4 py-1 bg-indigo-100 text-indigo-700 text-sm font-semibold rounded-full mb-4">
-            Use Case 2 (UC2)
-          </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             Resume ATS Checker
           </h1>

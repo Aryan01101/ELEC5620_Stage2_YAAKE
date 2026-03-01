@@ -517,4 +517,32 @@ export const scheduleAPI = {
   },
 };
 
+// Mock Interview API (UC7)
+export const mockInterviewAPI = {
+  // Start a new mock interview session
+  startInterview: async (data) => {
+    const response = await api.post("/uc7/start", data, {
+      timeout: 60000, // 60 seconds for AI generation
+    });
+    return response.data?.data || null;
+  },
+
+  // Submit an answer to the current question
+  submitAnswer: async (interviewId, answer) => {
+    const response = await api.post("/uc7/answer", {
+      interviewId,
+      answer,
+    });
+    return response.data?.data || null;
+  },
+
+  // Finish the interview and get results
+  finishInterview: async (interviewId) => {
+    const response = await api.post("/uc7/finish", {
+      interviewId,
+    });
+    return response.data?.data || null;
+  },
+};
+
 export default api;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { questionAPI } from '../../services/api';
 import { notifySuccess, notifyError } from '../../services/notification.service';
 
@@ -14,15 +14,7 @@ const SampleQuestions = () => {
     companyName: ''
   });
 
-  useEffect(() => {
-    if (activeTab === 'samples') {
-      fetchPublicSamples();
-    } else {
-      fetchCompanyTemplates();
-    }
-  }, [activeTab, filters]);
-
-  const fetchPublicSamples = async () => {
+  const fetchPublicSamples = useCallback(async () => {
     setLoading(true);
     try {
       const params = {};
@@ -36,9 +28,9 @@ const SampleQuestions = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters.category, filters.experienceLevel]);
 
-  const fetchCompanyTemplates = async () => {
+  const fetchCompanyTemplates = useCallback(async () => {
     setLoading(true);
     try {
       const params = {};
@@ -52,7 +44,15 @@ const SampleQuestions = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters.companyName, filters.experienceLevel]);
+
+  useEffect(() => {
+    if (activeTab === 'samples') {
+      fetchPublicSamples();
+    } else {
+      fetchCompanyTemplates();
+    }
+  }, [activeTab, fetchPublicSamples, fetchCompanyTemplates]);
 
   const handleExportPDF = async (id, jobTitle) => {
     try {

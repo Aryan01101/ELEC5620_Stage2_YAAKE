@@ -64,6 +64,10 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Trust proxy - needed for Render.com and other reverse proxies
+// This allows Express to trust X-Forwarded-* headers for correct client IP detection
+app.set('trust proxy', 1);
+
 // Data sanitization against NoSQL query injection
 app.use(mongoSanitize());
 
