@@ -37,10 +37,13 @@ const setCsrfToken = (req, res, next) => {
     csrfToken = generateCsrfToken();
 
     // Set cookie with SameSite protection
+    // Note: Using 'lax' instead of 'strict' to support cross-origin setup
+    // (frontend on Vercel, backend on Render). 'lax' still provides CSRF protection
+    // while allowing cookies to be sent with user-initiated cross-origin requests.
     res.cookie('XSRF-TOKEN', csrfToken, {
       httpOnly: false, // Must be false so JavaScript can read it
       secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-      sameSite: 'strict', // Prevents CSRF attacks
+      sameSite: 'lax', // Prevents CSRF attacks while supporting cross-origin requests
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
 
