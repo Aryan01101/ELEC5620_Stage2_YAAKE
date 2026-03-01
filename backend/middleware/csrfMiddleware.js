@@ -50,6 +50,11 @@ const setCsrfToken = (req, res, next) => {
     logger.debug('CSRF token generated', { token: csrfToken.substring(0, 8) + '...' });
   }
 
+  // CRITICAL: Send token in response header for cross-origin JavaScript access
+  // JavaScript cannot read cross-origin cookies via document.cookie due to Same-Origin Policy
+  // This header allows the frontend to extract and store the token for subsequent requests
+  res.setHeader('X-CSRF-Token', csrfToken);
+
   next();
 };
 

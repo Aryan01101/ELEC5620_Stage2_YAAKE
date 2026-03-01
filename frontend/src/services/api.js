@@ -14,6 +14,10 @@ const api = axios.create({
   timeout: 30000, // 30 seconds timeout (reduced from 70s for better UX)
 });
 
+// Store CSRF token in memory (extracted from response headers)
+// Cannot use document.cookie for cross-origin cookies due to Same-Origin Policy
+let csrfToken = null;
+
 // Request interceptor - add token and CSRF token to requests
 api.interceptors.request.use(
   (config) => {
@@ -23,9 +27,9 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Add CSRF token from cookie for state-changing requests
+    // Add CSRF token for state-changing requests
+    // Token is extracted from response headers and stored in memory (see response interceptor)
     if (['post', 'put', 'patch', 'delete'].includes(config.method.toLowerCase())) {
-      const csrfToken = getCookie('XSRF-TOKEN');
       if (csrfToken) {
         config.headers['X-XSRF-TOKEN'] = csrfToken;
       }
@@ -38,17 +42,16 @@ api.interceptors.request.use(
   }
 );
 
-// Helper function to get cookie value
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-  return null;
-}
-
-// Response interceptor - handle errors globally
+// Response interceptor - extract CSRF token and handle errors globally
 api.interceptors.response.use(
   (response) => {
+    // Extract CSRF token from response header (for cross-origin CSRF protection)
+    // Backend sends token in X-CSRF-Token header which is accessible cross-origin
+    const token = response.headers['x-csrf-token'];
+    if (token) {
+      csrfToken = token;
+    }
+
     return response;
   },
   (error) => {

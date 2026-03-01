@@ -55,7 +55,8 @@ app.use(helmet());
 // CORS configuration
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['X-CSRF-Token'] // Allow frontend to read CSRF token header
 }));
 
 // Cookie parser middleware (required for CSRF protection)
