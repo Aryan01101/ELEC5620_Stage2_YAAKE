@@ -10,6 +10,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true, // Required for cross-origin cookie support (CSRF tokens)
   timeout: 30000, // 30 seconds timeout (reduced from 70s for better UX)
 });
 
