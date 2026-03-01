@@ -74,6 +74,23 @@ const validateCsrfToken = (req, res, next) => {
     return next();
   }
 
+  // Skip CSRF check for public authentication endpoints
+  // These endpoints are first-contact points where users don't have tokens yet
+  const publicEndpoints = [
+    '/api/auth/register',
+    '/api/auth/login',
+    '/api/auth/guest-register',
+    '/api/auth/verify-email',
+    '/api/auth/resend-verification',
+  ];
+  if (publicEndpoints.some(endpoint => req.originalUrl.startsWith(endpoint))) {
+    logger.debug('CSRF validation skipped for public endpoint', {
+      method: req.method,
+      url: req.originalUrl,
+    });
+    return next();
+  }
+
   // Get token from cookie
   const cookieToken = req.cookies?.['XSRF-TOKEN'];
 
