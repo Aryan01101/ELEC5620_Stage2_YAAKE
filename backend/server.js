@@ -37,6 +37,7 @@ const atsRoutes = require('./routes/atsRoutes');
 const scheduleRoutes = require('./routes/scheduleRoutes');
 const UserController = require('./controllers/userController');
 const dbService = require('./services/db.service');
+const mongoose = require('mongoose');
 
 // Initialize Express app
 const app = express();

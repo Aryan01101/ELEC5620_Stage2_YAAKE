@@ -96,10 +96,11 @@ function getErrorHandler() {
     return (err, req, res, next) => next(err);
   }
 
-  // v10+ API - setupExpressErrorHandler returns the middleware
-  // Note: shouldHandleError filter is not supported in v10 setupExpressErrorHandler
+  // v10+ API - expressErrorHandler() returns the actual middleware
+  // setupExpressErrorHandler(app) is a convenience function that calls app.use() internally
+  // Note: shouldHandleError filter is not supported in v10
   // Errors are filtered in beforeSend hook instead
-  return Sentry.setupExpressErrorHandler();
+  return Sentry.expressErrorHandler();
 }
 
 /**
