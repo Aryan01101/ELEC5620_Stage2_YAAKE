@@ -5,7 +5,7 @@
  * This prevents runtime errors due to missing configuration.
  */
 
-const chalk = require('chalk') || { red: (str) => str, yellow: (str) => str, green: (str) => str };
+// Note: chalk removed - not needed (using emoji symbols for visual distinction)
 
 /**
  * Required environment variables for all environments
