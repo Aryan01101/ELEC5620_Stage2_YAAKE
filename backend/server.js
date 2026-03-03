@@ -49,17 +49,34 @@ sentry.initSentry(app);
 app.use(sentry.getRequestHandler());
 app.use(sentry.getTracingHandler());
 
-// Security middleware
-app.use(helmet());
+// Security middleware - Enhanced XSS protection
+// With CSRF disabled, we focus on preventing XSS attacks
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for React
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", process.env.FRONTEND_URL || "http://localhost:3000"],
+      fontSrc: ["'self'", "https:", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Allow cross-origin requests
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 
 // CORS configuration
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true,
-  exposedHeaders: ['X-CSRF-Token'] // Allow frontend to read CSRF token header
+  credentials: true
+  // Note: exposedHeaders removed - CSRF protection not needed with JWT in localStorage
 }));
 
-// Cookie parser middleware (required for CSRF protection)
+// Cookie parser middleware (may be used by other features)
 app.use(cookieParser());
 
 // Body parser middleware
@@ -99,10 +116,16 @@ const limiter = rateLimit({
 
 app.use('/api/', limiter);
 
-// CSRF Protection (set token on all responses, validate on state-changing requests)
-const { setCsrfToken, validateCsrfToken } = require('./middleware/csrfMiddleware');
-app.use(setCsrfToken);      // Set CSRF token cookie on all requests
-app.use(validateCsrfToken); // Validate CSRF token on POST/PUT/PATCH/DELETE
+// CSRF Protection DISABLED
+// Rationale: Using JWT in localStorage with Authorization headers (not cookies)
+// CSRF attacks require browsers to auto-send cookies, which doesn't apply to localStorage
+// Industry standard: Auth0, Firebase, Supabase don't use CSRF with JWT in localStorage
+// Security focus shifted to XSS prevention (see helmet configuration above)
+// Reference: OWASP CSRF Prevention Cheat Sheet - Token-Based Authentication section
+//
+// const { setCsrfToken, validateCsrfToken } = require('./middleware/csrfMiddleware');
+// app.use(setCsrfToken);
+// app.use(validateCsrfToken);
 
 // Routes
 app.use('/api/auth', authRoutes);
