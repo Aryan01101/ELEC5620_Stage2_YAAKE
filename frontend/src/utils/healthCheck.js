@@ -102,8 +102,10 @@ export const displayHealthBanner = async () => {
   return result;
 };
 
-export default {
+const healthCheck = {
   checkAPIConnection,
   logAPIHealth,
   displayHealthBanner,
 };
+
+export default healthCheck;
