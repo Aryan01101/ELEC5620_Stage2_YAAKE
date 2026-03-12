@@ -7,7 +7,7 @@ require('dotenv').config();
  */
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash'; // Use env var or free tier default
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest'; // Use env var or free tier default
 
 if (!GEMINI_API_KEY) {
   console.warn('GEMINI_API key is not set. Please add GEMINI_API to your backend .env');

@@ -10,7 +10,7 @@ class AgenticAI {
   constructor(options = {}) {
     const apiKey = process.env.GEMINI_API_KEY || options.apiKey || '';
     this.genAI = new GoogleGenerativeAI(apiKey);
-    this.defaultModel = options.model || process.env.GEMINI_MODEL || 'gemini-1.5-flash'; // Free tier default
+    this.defaultModel = options.model || process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest'; // Free tier default
     this.model = this.genAI.getGenerativeModel({ model: this.defaultModel });
   }
 

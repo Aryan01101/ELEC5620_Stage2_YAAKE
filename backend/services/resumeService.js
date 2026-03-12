@@ -365,7 +365,7 @@ ${section}`;
 
       // Get the generative model
       const model = genAI.getGenerativeModel({
-        model: process.env.GEMINI_MODEL || 'gemini-1.5-flash' // Free tier default
+        model: process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest' // Free tier default
       });
 
       // Generate content
@@ -420,7 +420,7 @@ ${section}`;
 
       // Get the generative model
       const model = genAI.getGenerativeModel({
-        model: process.env.GEMINI_MODEL || 'gemini-1.5-flash' // Free tier default
+        model: process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest' // Free tier default
       });
 
       // Generate content
